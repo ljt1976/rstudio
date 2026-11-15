@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PriceHunt · 电商价格采集与对比</title>
+<link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+<div class="progress-bar" id="progressBar"></div>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="logo">P</div>
+      <div class="brand-name">PriceHunt<small>电商价格采集与对比</small></div>
+    </div>
+    <div class="topbar-meta">
+      <span class="status-pill demo" id="sourceStatus"><i></i>示例数据已就绪</span>
+      <a class="top-link hide-sm" href="/api/health?pretty=1" target="_blank" rel="noreferrer">API 状态</a>
+      <a class="top-link" href="https://search.jd.com" target="_blank" rel="noreferrer">数据来源</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="hero-kicker"><i></i>Price Automation · Scrape · Clean · Compare</div>
+      <h1>一次采集，三平台<em>现场比价</em></h1>
+      <p class="hero-sub">输入关键词，脚本现场执行：多平台采集 → 清洗去重 → 跨平台归组 → 性价比评分 → 趋势与推荐。支持命令行与网页共用同一套引擎。</p>
+
+      <form id="searchForm" autocomplete="off">
+        <div class="search-row">
+          <div class="input-wrap">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path>
+            </svg>
+            <input id="keywordInput" name="keyword" value="机械键盘" maxlength="40" placeholder="输入商品关键词，例如：机械键盘 / 蓝牙耳机 / 空气炸锅" aria-label="搜索关键词" />
+            <kbd>Enter</kbd>
+          </div>
+          <button class="btn-run" id="runBtn" type="submit">
+            <span id="runBtnText">开始采集</span>
+            <span class="arrow" id="runBtnArrow">→</span>
+          </button>
+        </div>
+
+        <div class="search-opts">
+          <span class="opt-label">平台</span>
+          <div class="platform-toggles" id="platformToggles">
+            <label class="ptoggle on" data-p="jd"><input type="checkbox" value="jd" checked /><span class="dot"></span>京东</label>
+            <label class="ptoggle on" data-p="tb"><input type="checkbox" value="tb" checked /><span class="dot"></span>淘宝</label>
+            <label class="ptoggle on" data-p="pdd"><input type="checkbox" value="pdd" checked /><span class="dot"></span>拼多多</label>
+          </div>
+          <label class="source-select">
+            <span>数据源</span>
+            <select id="sourceSelect">
+              <option value="demo">演示数据（离线确定性生成）</option>
+              <option value="auto">实时采集（失败自动降级）</option>
+              <option value="live">仅实时采集</option>
+            </select>
+          </label>
+        </div>
+      </form>
+
+      <div class="quick">
+        <span>试试</span>
+        <button type="button" data-kw="机械键盘">机械键盘</button>
+        <button type="button" data-kw="蓝牙耳机">蓝牙耳机</button>
+        <button type="button" data-kw="空气炸锅">空气炸锅</button>
+        <button type="button" data-kw="跑步鞋">跑步鞋</button>
+        <button type="button" data-kw="咖啡机">咖啡机</button>
+        <button type="button" data-kw="显示器">显示器</button>
+        <span style="opacity:.65">· 其余关键词自动生成模拟商品</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="pipeline" id="pipeline">
+    <div class="step" data-step="fetch">
+      <div class="step-num"><span>STEP 01</span><b>↗</b></div>
+      <div class="step-name">多平台采集</div>
+      <div class="step-detail" data-detail>等待运行</div>
+    </div>
+    <div class="step" data-step="clean">
+      <div class="step-num"><span>STEP 02</span><b>↗</b></div>
+      <div class="step-name">清洗去重</div>
+      <div class="step-detail" data-detail>等待运行</div>
+    </div>
+    <div class="step" data-step="group">
+      <div class="step-num"><span>STEP 03</span><b>↗</b></div>
+      <div class="step-name">跨平台归组</div>
+      <div class="step-detail" data-detail>等待运行</div>
+    </div>
+    <div class="step" data-step="insight">
+      <div class="step-num"><span>STEP 04</span><b>↗</b></div>
+      <div class="step-name">评分与趋势</div>
+      <div class="step-detail" data-detail>等待运行</div>
+    </div>
+  </section>
+
+  <div class="notice hidden" id="notice">
+    <span class="ico">i</span>
+    <div id="noticeText"></div>
+  </div>
+
+  <div class="result-shell" id="resultShell">
+    <div class="result-head" id="resultHead" style="display:none">
+      <div class="result-title">
+        <h2>「<em id="resultKeyword">—</em>」采集结果</h2>
+        <p id="resultMeta">—</p>
+      </div>
+      <div class="artifact-actions">
+        <a class="btn-ghost" id="csvLink" href="#" target="_blank" rel="noreferrer">↓ 下载 CSV</a>
+        <a class="btn-ghost primary" id="reportLink" href="#" target="_blank" rel="noreferrer">查看完整报告 ↗</a>
+      </div>
+    </div>
+
+    <section class="kpis" id="kpis"></section>
+
+    <section class="section" id="recsSection" style="display:none">
+      <div class="section-head">
+        <div class="section-title"><span class="idx">02</span><h2>性价比推荐</h2></div>
+        <p>四个推荐位分别落到不同商品 · 点击卡片可定位明细</p>
+      </div>
+      <div class="recs" id="recs"></div>
+    </section>
+
+    <div class="grid-2">
+      <section class="section" id="compareSection" style="display:none">
+        <div class="section-head">
+          <div class="section-title"><span class="idx">03</span><h2>商品横向对比</h2></div>
+          <p>同型号按平台对齐 · 价差越大越值得比价</p>
+        </div>
+        <div class="card">
+          <div class="cmp-list" id="comparison"></div>
+        </div>
+      </section>
+
+      <section class="section" id="winsSection" style="display:none">
+        <div class="section-head">
+          <div class="section-title"><span class="idx">04</span><h2>平台最低价命中</h2></div>
+        </div>
+        <div class="card">
+          <div class="wins" id="platformWins"></div>
+        </div>
+      </section>
+    </div>
+
+    <section class="section" id="trendSection" style="display:none">
+      <div class="section-head">
+        <div class="section-title"><span class="idx">05</span><h2>价格趋势</h2></div>
+        <p id="trendHint">近 30 天 · 鼠标悬停查看每日价格</p>
+      </div>
+      <div class="card">
+        <div class="chart-legend" id="trendLegend"></div>
+        <div class="chart-wrap" id="trendWrap">
+          <div class="chart-tip" id="trendTip"></div>
+          <div id="trendChart"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="bubbleSection" style="display:none">
+      <div class="section-head">
+        <div class="section-title"><span class="idx">06</span><h2>价格 × 销量分布</h2></div>
+        <p>气泡越大评分越高 · 点击定位明细</p>
+      </div>
+      <div class="card">
+        <div class="chart-wrap" id="bubbleWrap">
+          <div class="chart-tip" id="bubbleTip"></div>
+          <div id="bubbleChart"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="tableSection" style="display:none">
+      <div class="section-head">
+        <div class="section-title"><span class="idx">07</span><h2>全部有效报价</h2></div>
+        <div class="section-tools">
+          <div class="segmented" id="platformFilter">
+            <button class="on" data-p="">全部</button>
+            <button data-p="jd">京东</button>
+            <button data-p="tb">淘宝</button>
+            <button data-p="pdd">拼多多</button>
+          </div>
+          <input class="mini-input" id="filterInput" placeholder="筛选商品 / 店铺" />
+          <select class="mini-select" id="sortSelect">
+            <option value="price">价格从低到高</option>
+            <option value="sales">销量优先</option>
+            <option value="value">性价比优先</option>
+            <option value="rating">评分优先</option>
+          </select>
+        </div>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table class="list">
+            <thead>
+              <tr>
+                <th style="width:38px">#</th>
+                <th style="width:84px">平台</th>
+                <th>商品 / 店铺</th>
+                <th style="width:104px">到手价</th>
+                <th style="width:82px">销量</th>
+                <th style="width:118px">性价比</th>
+                <th>标注</th>
+                <th style="width:44px"></th>
+              </tr>
+            </thead>
+            <tbody id="listingBody"></tbody>
+          </table>
+        </div>
+        <div class="table-foot">
+          <span id="tableFoot">—</span>
+          <span>价格 45% · 销量 35% · 评分 20%</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="empty-state" id="emptyState">
+      <b>示例数据加载中…</b>
+      正在用「机械键盘」跑通完整采集链路
+    </div>
+  </div>
+</main>
+
+<footer class="footer">
+  <div style="max-width:660px">
+    <b>关于本工具</b> · 采集层采用「平台适配器 + 自动降级」：京东解析搜索页并补齐价格接口，淘宝需登录态 Cookie，拼多多需 anti_content 签名；受平台风控限制时自动降级为确定性演示数据源，保证链路可复现。<br />
+    <b>合规提示</b> · 仅用于个人比价与技术研究，请遵守目标平台服务条款与 robots 协议，控制请求频率。
+  </div>
+  <div style="text-align:right">
+    <b>PriceHunt v1.0</b><br />
+    Python · 零前端依赖 · 自包含报告
+  </div>
+</footer>
+
+<div class="toast" id="toast"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>
